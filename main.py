@@ -5,119 +5,94 @@ import random
 from VSE_beradat import VSE_Dolgozo
 
 
-def VSE_rogzites():
-    nev = nev_mezo.get().strip()
-    torzsszam = torzsszam_mezo.get().strip()
-    alapber = alapber_mezo.get().strip()
-    ledolgozott = ledolgozott_mezo.get().strip()
-    tavollet = tavollet_mezo.get().strip()
-
-    if not nev or not torzsszam or not alapber or not ledolgozott or not tavollet:
-        messagebox.showerror("Hiba", "Minden mezőt ki kell tölteni!")
-        return
-
-    try:
-        alapber = int(alapber)
-        ledolgozott = int(ledolgozott)
-        tavollet = int(tavollet)
-    except ValueError:
-        messagebox.showerror("Hiba", "A bér és a napok csak egész számok lehetnek!")
-        return
-
-    if alapber <= 0 or ledolgozott < 0 or tavollet < 0:
-        messagebox.showerror("Hiba", "Hibás bér vagy napok!")
-        return
-
-    dolgozo = VSE_Dolgozo(nev, torzsszam, alapber, ledolgozott, tavollet)
-
+def VSE_azonosito():
     szam = random.randint(100, 999)
     betu = random.choice(["A", "B", "C"])
     ellenorzo = round(random.uniform(1, 9), 1)
-
-    azonosito = f"{betu}{szam}-{ellenorzo}"
-    adat = f"{dolgozo.adatok()} | Azonosító: {azonosito}"
-
-    dolgozo_lista.insert(tk.END, adat)
-
-    nev_mezo.delete(0, tk.END)
-    torzsszam_mezo.delete(0, tk.END)
-    alapber_mezo.delete(0, tk.END)
-    ledolgozott_mezo.delete(0, tk.END)
-    tavollet_mezo.delete(0, tk.END)
+    return f"{betu}{szam}-{ellenorzo}"
 
 
-def VSE_torles():
-    kijelolt = dolgozo_lista.curselection()
+class VSE_BeradatApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Béradat-nyilvántartó")
+        self.root.geometry("850x650")
 
-    if kijelolt:
-        dolgozo_lista.delete(kijelolt[0])
-        VSE_mentes()
+        tk.Label(root, text="BÉRADAT-NYILVÁNTARTÓ", font=("Arial", 18)).pack(pady=20)
 
+        self.nev_mezo = self.VSE_mezo("Dolgozó neve:")
+        self.torzsszam_mezo = self.VSE_mezo("Törzsszám:")
+        self.alapber_mezo = self.VSE_mezo("Havi alapbér (Ft):")
+        self.ledolgozott_mezo = self.VSE_mezo("Ledolgozott napok:")
+        self.tavollet_mezo = self.VSE_mezo("Távolléti napok:")
 
-def VSE_mentes():
-    with open("dolgozok.txt", "w", encoding="utf-8") as fajl:
-        for dolgozo in dolgozo_lista.get(0, tk.END):
-            fajl.write(dolgozo + "\n")
+        tk.Button(root, text="Dolgozó rögzítése", command=self.VSE_rogzites).pack(pady=10)
 
+        self.dolgozo_lista = tk.Listbox(root, width=110, height=6)
+        self.dolgozo_lista.pack(pady=5)
 
-def VSE_betoltes():
-    try:
-        with open("dolgozok.txt", "r", encoding="utf-8") as fajl:
-            for dolgozo in fajl:
-                dolgozo_lista.insert(tk.END, dolgozo.strip())
-    except FileNotFoundError:
-        pass
+        tk.Button(root, text="Kijelölt törlése", command=self.VSE_torles).pack(pady=5)
+        tk.Button(root, text="Adatok mentése", command=self.VSE_mentes).pack(pady=5)
+
+        self.root.bind("<Return>", lambda event: self.VSE_rogzites())
+        self.dolgozo_lista.bind("<Delete>", lambda event: self.VSE_torles())
+
+        self.VSE_betoltes()
+
+    def VSE_mezo(self, felirat):
+        tk.Label(self.root, text=felirat).pack()
+        mezo = tk.Entry(self.root, width=40)
+        mezo.pack(pady=5)
+        return mezo
+
+    def VSE_rogzites(self):
+        mezok = [self.nev_mezo, self.torzsszam_mezo, self.alapber_mezo,
+                 self.ledolgozott_mezo, self.tavollet_mezo]
+        nev, torzsszam, alapber, ledolgozott, tavollet = [m.get().strip() for m in mezok]
+
+        if not nev or not torzsszam or not alapber or not ledolgozott or not tavollet:
+            messagebox.showerror("Hiba", "Minden mezőt ki kell tölteni!")
+            return
+
+        try:
+            alapber = int(alapber)
+            ledolgozott = int(ledolgozott)
+            tavollet = int(tavollet)
+        except ValueError:
+            messagebox.showerror("Hiba", "A bér és a napok csak egész számok lehetnek!")
+            return
+
+        if alapber <= 0 or ledolgozott < 0 or tavollet < 0:
+            messagebox.showerror("Hiba", "Hibás bér vagy napok!")
+            return
+
+        dolgozo = VSE_Dolgozo(nev, torzsszam, alapber, ledolgozott, tavollet)
+        self.dolgozo_lista.insert(tk.END, f"{dolgozo.adatok()} | Azonosító: {VSE_azonosito()}")
+
+        for mezo in mezok:
+            mezo.delete(0, tk.END)
+
+    def VSE_torles(self):
+        kijelolt = self.dolgozo_lista.curselection()
+        if kijelolt:
+            self.dolgozo_lista.delete(kijelolt[0])
+            self.VSE_mentes()
+
+    def VSE_mentes(self):
+        with open("dolgozok.txt", "w", encoding="utf-8") as fajl:
+            for dolgozo in self.dolgozo_lista.get(0, tk.END):
+                fajl.write(dolgozo + "\n")
+
+    def VSE_betoltes(self):
+        try:
+            with open("dolgozok.txt", "r", encoding="utf-8") as fajl:
+                for dolgozo in fajl:
+                    if dolgozo.strip():
+                        self.dolgozo_lista.insert(tk.END, dolgozo.strip())
+        except FileNotFoundError:
+            pass
 
 
 root = tk.Tk()
-root.title("Béradat-nyilvántartó")
-root.geometry("850x650")
-
-cimke = tk.Label(root, text="BÉRADAT-NYILVÁNTARTÓ", font=("Arial", 18))
-cimke.pack(pady=20)
-
-nev_cimke = tk.Label(root, text="Dolgozó neve:")
-nev_cimke.pack()
-
-nev_mezo = tk.Entry(root, width=40)
-nev_mezo.pack(pady=5)
-
-torzsszam_cimke = tk.Label(root, text="Törzsszám:")
-torzsszam_cimke.pack()
-
-torzsszam_mezo = tk.Entry(root, width=40)
-torzsszam_mezo.pack(pady=5)
-
-alapber_cimke = tk.Label(root, text="Havi alapbér (Ft):")
-alapber_cimke.pack()
-
-alapber_mezo = tk.Entry(root, width=40)
-alapber_mezo.pack(pady=5)
-
-ledolgozott_cimke = tk.Label(root, text="Ledolgozott napok:")
-ledolgozott_cimke.pack()
-
-ledolgozott_mezo = tk.Entry(root, width=40)
-ledolgozott_mezo.pack(pady=5)
-
-tavollet_cimke = tk.Label(root, text="Távolléti napok:")
-tavollet_cimke.pack()
-
-tavollet_mezo = tk.Entry(root, width=40)
-tavollet_mezo.pack(pady=5)
-
-rogzites_gomb = tk.Button(root, text="Dolgozó rögzítése", command=VSE_rogzites)
-rogzites_gomb.pack(pady=10)
-
-dolgozo_lista = tk.Listbox(root, width=110, height=6)
-dolgozo_lista.pack(pady=5)
-
-torles_gomb = tk.Button(root, text="Kijelölt törlése", command=VSE_torles)
-torles_gomb.pack(pady=5)
-
-mentes_gomb = tk.Button(root, text="Adatok mentése", command=VSE_mentes)
-mentes_gomb.pack(pady=5)
-
-VSE_betoltes()
-
+app = VSE_BeradatApp(root)
 root.mainloop()
